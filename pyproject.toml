@@ -1,0 +1,89 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "unredact"
+version = "1.0.0"
+description = "PDF Redaction Text Recovery & Display Tool - Extract selectable but visually redacted text from PDFs"
+readme = "README.md"
+license = "GPL-3.0-only"
+requires-python = ">=3.8"
+authors = [
+    { name = "leedrake5" }
+]
+keywords = [
+    "pdf",
+    "redaction",
+    "text-extraction",
+    "document-analysis",
+    "pdfplumber",
+    "pymupdf",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Legal Industry",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Text Processing :: General",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "pdfplumber>=0.10.0",
+    "pymupdf>=1.23.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0.0",
+]
+
+[project.scripts]
+unredact = "unredact.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/leedrake5/unredact"
+Repository = "https://github.com/leedrake5/unredact"
+Issues = "https://github.com/leedrake5/unredact/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/unredact"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/examples",
+    "/README.md",
+    "/LICENSE",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py38"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
