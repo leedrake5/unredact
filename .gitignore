@@ -36,4 +36,4 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
-tests/test.pdf
+tests/*.pdf
