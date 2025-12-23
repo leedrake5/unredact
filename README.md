@@ -73,3 +73,32 @@ pip install pdfplumber pymupdf
 ```bash
 python redact_extract.py example.pdf
 ```
+
+### Statistics
+
+Track what text was **actually recovered from under redaction bars** with the `--stats` flag:
+
+```bash
+python redact_extract.py example.pdf --stats
+```
+
+Output:
+```
+🔍 Unredaction Results
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Redaction boxes found:   42
+Words recovered:         387
+Characters recovered:    2,156
+Recovery rate:           12.3% of text was hidden
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Total extracted:         3,429 words
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+Export stats to JSON:
+
+```bash
+python redact_extract.py example.pdf --stats-json stats.json
+```
+
+The tool detects black-filled rectangles (redaction boxes) and measures which extracted words were hidden underneath them.
