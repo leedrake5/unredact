@@ -1,0 +1,10 @@
+[project]
+name = "unredact"
+version = "0.1.0"
+description = "PDF Redaction Text Recovery & Display Tool"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pdfplumber>=0.11.8",
+    "pymupdf>=1.26.7",
+]

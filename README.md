@@ -69,9 +69,16 @@ No OCR is performed.
 ## Installation
 
 ```bash
-pip install pdfplumber pymupdf
+uv sync
 ```
 ## Use
 ```bash
-python redact_extract.py example.pdf
+uv run redact_extract.py
+```
+
+```bash
+usage: redact_extract.py [-h] [-o OUTPUT] [--mode {side_by_side,overlay_white}] [--line-tol LINE_TOL] [--space-unit SPACE_UNIT]
+                         [--min-spaces MIN_SPACES]
+                         input_pdf
+redact_extract.py: error: the following arguments are required: input_pdf
 ```
