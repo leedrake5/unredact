@@ -45,12 +45,16 @@ def build_line_text(line_words, space_unit_pts=3.0, min_spaces=1):
     line_words = sorted(line_words, key=lambda w: float(w.get("x0", 0.0)))
 
     # representative font size: median of sizes if present, else bbox height
+    # Filter out outliers (very large sizes that are likely artifacts)
     sizes = []
     for w in line_words:
         s = w.get("size", None)
         if s is not None:
             try:
-                sizes.append(float(s))
+                size_val = float(s)
+                # Filter out suspiciously large sizes (likely headers/watermarks/artifacts)
+                if 4.0 <= size_val <= 72.0:
+                    sizes.append(size_val)
             except Exception:
                 pass
 
@@ -63,9 +67,18 @@ def build_line_text(line_words, space_unit_pts=3.0, min_spaces=1):
         for w in line_words:
             top = float(w.get("top", 0.0))
             bottom = float(w.get("bottom", top + 10.0))
-            hs.append(max(6.0, bottom - top))
-        hs.sort()
-        font_size = float(hs[len(hs) // 2]) if hs else 10.0
+            height = max(6.0, bottom - top)
+            # Filter out suspiciously large heights
+            if height <= 72.0:
+                hs.append(height)
+        if hs:
+            hs.sort()
+            font_size = float(hs[len(hs) // 2])
+        else:
+            font_size = 10.0
+    
+    # Final bounds check: clamp to reasonable range
+    font_size = max(6.0, min(12.0, font_size))
 
     top_med = sorted([float(w.get("top", 0.0)) for w in line_words])[len(line_words) // 2]
 
