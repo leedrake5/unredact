@@ -4,6 +4,41 @@ import pdfplumber
 import fitz  # PyMuPDF
 
 
+def map_font_to_pymudf(font):
+    """Maps arbitrary font names to built-in PyMuPDF fonts"""
+    font = font.lower()
+
+    f = "helvetica"
+    if "helvetica" in font:
+        if "bold" in font:
+            f = "helvetica-bold"
+            if "oblique" in font:
+                f = "helvetica-boldoblique"
+        elif "oblique" in font:
+            f = "helvetica-oblique"
+    elif "times" in font:
+        f = "times-roman"
+        if "bold" in font:
+            f = "times-bold"
+            if "italic" in font:
+                f = "times-bolditalic"
+        elif "italic" in font:
+            f = "times-italic"
+    elif "courier" in font:
+        f = "courier"
+        if "bold" in font:
+            f = "courier-bold"
+            if "oblique" in font:
+                f = "courier-boldoblique"
+        elif "oblique" in font:
+            f = "courier-oblique"
+    elif "symbol" in font:
+        f = "symbol"
+    elif "zapf" in font or "dingbat" in font:
+        f = "zapfdingbats"
+    
+    return f
+
 def group_words_into_lines(words, line_tol=2.0):
     """Cluster words into lines using their 'top' coordinate."""
     if not words:
@@ -37,15 +72,16 @@ def group_words_into_lines(words, line_tol=2.0):
     return lines
 
 
-def build_line_text(line_words, space_unit_pts=3.0, min_spaces=1):
+def build_line_text(line_words, space_unit_pts=3.0, min_spaces=1, match_font=False):
     """
     Rebuild a line by inserting spaces based on x-gaps.
-    Returns (text, x0, x1, top, font_size_est).
+    Returns (text, x0, x1, top, font_size_est, font_name).
     """
     line_words = sorted(line_words, key=lambda w: float(w.get("x0", 0.0)))
 
     # representative font size: median of sizes if present, else bbox height
     sizes = []
+    fontnames = {}
     for w in line_words:
         s = w.get("size", None)
         if s is not None:
@@ -53,6 +89,17 @@ def build_line_text(line_words, space_unit_pts=3.0, min_spaces=1):
                 sizes.append(float(s))
             except Exception:
                 pass
+
+        if match_font:
+            f = w.get("fontname", None)
+            if f is not None:
+                try:
+                    if fontnames.get(f, None) is not None:
+                        fontnames[f] += 1
+                    else:
+                        fontnames[f] = 1
+                except Exception:
+                    pass
 
     if sizes:
         sizes_sorted = sorted(sizes)
@@ -66,6 +113,14 @@ def build_line_text(line_words, space_unit_pts=3.0, min_spaces=1):
             hs.append(max(6.0, bottom - top))
         hs.sort()
         font_size = float(hs[len(hs) // 2]) if hs else 10.0
+    
+
+    font_name = "helvetica"
+    if fontnames and match_font:
+        mode_font = max(fontnames, key=fontnames.get)
+        font_name = map_font_to_pymudf(
+            mode_font.lower()
+        )
 
     top_med = sorted([float(w.get("top", 0.0)) for w in line_words])[len(line_words) // 2]
 
@@ -94,10 +149,10 @@ def build_line_text(line_words, space_unit_pts=3.0, min_spaces=1):
         prev_x1 = max(prev_x1, x1)
         last_x1 = max(last_x1, x1)
 
-    return "".join(parts), first_x0, last_x1, top_med, font_size
+    return "".join(parts), first_x0, last_x1, top_med, font_size, font_name
 
 
-def extract_lines_with_positions(pdf_path, line_tol=2.0, space_unit_pts=3.0, min_spaces=1):
+def extract_lines_with_positions(pdf_path, line_tol=2.0, space_unit_pts=3.0, min_spaces=1, match_font=False):
     """
     Returns list per page: [(line_text, x0, top, font_size), ...]
     Coordinates are in PDF points with origin at top-left (like pdfplumber/PyMuPDF).
@@ -116,17 +171,17 @@ def extract_lines_with_positions(pdf_path, line_tol=2.0, space_unit_pts=3.0, min
 
             out = []
             for lw in lines:
-                line_text, x0, x1, top, font_size = build_line_text(
-                    lw, space_unit_pts=space_unit_pts, min_spaces=min_spaces
+                line_text, x0, x1, top, font_size, font_name = build_line_text(
+                    lw, space_unit_pts=space_unit_pts, min_spaces=min_spaces, match_font=match_font
                 )
                 if line_text.strip():
-                    out.append((line_text, x0, top, font_size))
+                    out.append((line_text, x0, top, font_size, font_name))
             pages_lines.append(out)
 
     return pages_lines
 
 
-def make_side_by_side(input_pdf, output_pdf, line_tol=2.0, space_unit_pts=3.0, min_spaces=1):
+def make_side_by_side(input_pdf, output_pdf, line_tol=2.0, space_unit_pts=3.0, min_spaces=1, match_font=False):
     """
     Output pages are double-width:
       left: original page
@@ -136,7 +191,7 @@ def make_side_by_side(input_pdf, output_pdf, line_tol=2.0, space_unit_pts=3.0, m
     out = fitz.open()
 
     lines_per_page = extract_lines_with_positions(
-        input_pdf, line_tol=line_tol, space_unit_pts=space_unit_pts, min_spaces=min_spaces
+        input_pdf, line_tol=line_tol, space_unit_pts=space_unit_pts, min_spaces=min_spaces, match_font=match_font
     )
 
     for i, src_page in enumerate(src):
@@ -152,7 +207,7 @@ def make_side_by_side(input_pdf, output_pdf, line_tol=2.0, space_unit_pts=3.0, m
         x_off = w
         page_lines = lines_per_page[i] if i < len(lines_per_page) else []
 
-        for (txt, x0, top, font_size) in page_lines:
+        for (txt, x0, top, font_size, font_name) in page_lines:
             # y: pdfplumber 'top' is top of bbox; nudge toward baseline
             y = float(top) + float(font_size) * 0.85
 
@@ -160,7 +215,7 @@ def make_side_by_side(input_pdf, output_pdf, line_tol=2.0, space_unit_pts=3.0, m
                 fitz.Point(x_off + float(x0), float(y)),
                 txt,
                 fontsize=float(font_size),
-                fontname="helv",     # built-in Helvetica
+                fontname=font_name,
                 color=(0, 0, 0),     # black
                 overlay=True
             )
@@ -171,7 +226,7 @@ def make_side_by_side(input_pdf, output_pdf, line_tol=2.0, space_unit_pts=3.0, m
     print(f"Wrote: {output_pdf}")
 
 
-def make_overlay_white(input_pdf, output_pdf, line_tol=2.0, space_unit_pts=3.0, min_spaces=1):
+def make_overlay_white(input_pdf, output_pdf, line_tol=2.0, space_unit_pts=3.0, min_spaces=1, match_font=False):
     """
     Output is the original PDF with extracted text overlaid in white.
     This often “reveals” text on top of black redaction bars without detecting them.
@@ -179,18 +234,18 @@ def make_overlay_white(input_pdf, output_pdf, line_tol=2.0, space_unit_pts=3.0, 
     doc = fitz.open(input_pdf)
 
     lines_per_page = extract_lines_with_positions(
-        input_pdf, line_tol=line_tol, space_unit_pts=space_unit_pts, min_spaces=min_spaces
+        input_pdf, line_tol=line_tol, space_unit_pts=space_unit_pts, min_spaces=min_spaces, match_font=match_font
     )
 
     for i, page in enumerate(doc):
         page_lines = lines_per_page[i] if i < len(lines_per_page) else []
-        for (txt, x0, top, font_size) in page_lines:
+        for (txt, x0, top, font_size, font_name) in page_lines:
             y = float(top) + float(font_size) * 0.85
             page.insert_text(
                 fitz.Point(float(x0), float(y)),
                 txt,
                 fontsize=float(font_size),
-                fontname="helv",
+                fontname=font_name,
                 color=(1, 1, 1),   # white
                 overlay=True
             )
@@ -208,6 +263,7 @@ def main():
     ap.add_argument("--line-tol", type=float, default=2.0, help="Line grouping tolerance (pts). Try 1.5–4.0")
     ap.add_argument("--space-unit", type=float, default=3.0, help="Pts per inserted space (bigger => fewer spaces)")
     ap.add_argument("--min-spaces", type=int, default=1, help="Minimum spaces between words when gap exists")
+    ap.add_argument("--match-font", action="store_true", help="Attempt to match the original fonts from the redacted PDF")
     args = ap.parse_args()
 
     if not os.path.exists(args.input_pdf):
@@ -221,12 +277,12 @@ def main():
     if args.mode == "side_by_side":
         make_side_by_side(
             args.input_pdf, args.output,
-            line_tol=args.line_tol, space_unit_pts=args.space_unit, min_spaces=args.min_spaces
+            line_tol=args.line_tol, space_unit_pts=args.space_unit, min_spaces=args.min_spaces, match_font=args.match_font
         )
     else:
         make_overlay_white(
             args.input_pdf, args.output,
-            line_tol=args.line_tol, space_unit_pts=args.space_unit, min_spaces=args.min_spaces
+            line_tol=args.line_tol, space_unit_pts=args.space_unit, min_spaces=args.min_spaces, match_font=args.match_font
         )
 
 
