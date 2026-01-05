@@ -4,6 +4,8 @@ This repository contains a Python utility for extracting selectable (but visuall
 
 The tool is intended for document analysis, archival review, research, and verification of redaction practices It does not bypass encryption or security controls; it only extracts text that remains present in the PDF content stream.
 
+Note - not all files can be unredacted. This tool only works for pooly redacted files. If you get blank spaces, the file has been properly redacted. 
+
 ---
 
 ## What This Tool Does
@@ -67,9 +69,45 @@ No OCR is performed.
 ## Installation
 
 ```bash
-pip install pdfplumber pymupdf
+uv sync
 ```
 ## Use
 ```bash
-python redact_extract.py example.pdf
+uv run redact_extract.py
 ```
+
+```bash
+usage: redact_extract.py [-h] [-o OUTPUT] [--mode {side_by_side,overlay_white}] [--line-tol LINE_TOL] [--space-unit SPACE_UNIT]
+                         [--min-spaces MIN_SPACES]
+                         input_pdf
+redact_extract.py: error: the following arguments are required: input_pdf
+```
+
+### Statistics
+
+Track what text was **actually recovered from under redaction bars** with the `--stats` flag:
+
+```bash
+python redact_extract.py example.pdf --stats
+```
+
+Output:
+```
+🔍 Unredaction Results
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Redaction boxes found:   42
+Words recovered:         387
+Characters recovered:    2,156
+Recovery rate:           12.3% of text was hidden
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Total extracted:         3,429 words
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+Export stats to JSON:
+
+```bash
+python redact_extract.py example.pdf --stats-json stats.json
+```
+
+The tool detects black-filled rectangles (redaction boxes) and measures which extracted words were hidden underneath them.
