@@ -2,6 +2,7 @@ import os
 import argparse
 import pdfplumber
 import fitz  # PyMuPDF
+from pathlib import Path
 
 
 def map_font_to_pymudf(font):
@@ -266,13 +267,22 @@ def main():
     ap.add_argument("--match-font", action="store_true", help="Attempt to match the original fonts from the redacted PDF")
     args = ap.parse_args()
 
+
+
     if not os.path.exists(args.input_pdf):
         raise FileNotFoundError(args.input_pdf)
 
     if args.output is None:
-        base, _ = os.path.splitext(args.input_pdf)
+        base_dir = os.path.dirname(args.input_pdf) # ex: ./files
+        new_folder = base_dir + "/unredacted/" # ex: ./files/unredacted/
+        pdf_name = Path(args.input_pdf).stem # ex: document1 (note: no extension)
         suffix = "_side_by_side.pdf" if args.mode == "side_by_side" else "_overlay_white.pdf"
-        args.output = base + suffix
+        args.output = new_folder + pdf_name + suffix # ex ./files/unredacted/document1_side_by_side.pdf
+
+        # create unredacted directory if not exists
+        if os.path.isdir(new_folder):
+            pass
+        else: os.makedirs(new_folder)
 
     if args.mode == "side_by_side":
         make_side_by_side(
